@@ -1,0 +1,114 @@
+model:
+  model_type: "cnn" # options: cnn (convolutional nn), resnet, sn (siamese nn), dann (domain adversarial nn)
+  training_type: "finetuning"
+  physio_input_dim: 28 # 29
+  sleep_input_dim: 28 # 29
+  demo_input_dim: 8
+  proj_head_dim: 128 # FIXED
+  conv_layers: [128] # [16, 32, 64], [32, 64, 128], [32, 64, 64]
+  sp_conv_layers: [16] # [16, 32, 64], [32, 64, 128], [32, 64, 64]
+  fcnn_layers: [16] # FIXED
+  embedding_dim: 128 # used for siamese network
+  output_dim: 2
+  feature_split: [4, 4, 20]
+
+early_stopping:
+  patience: 20
+  delta: 0.0001
+
+training:
+  algorithm: "erm" # options: erm, irm, vrex, dro, hhiss
+  epochs: 30
+  batch_size: 64 # 32
+  k_per_user: 8 # number of samples per user in each batch
+  learning_rate: 0.0005
+  dropout: 0.3
+  device: "cuda"  # Change to "cuda" if using GPU
+  use_scheduler: True
+  # irm specific
+  irm_penalty_weight: 10000 #0.8 # 1e4 from https://github.com/facebookresearch/InvariantRiskMinimization/blob/main/code/colored_mnist/main.py
+  # dro specific
+  dro_eta: 0.01 # from HHISS code; original code: https://github.com/kohpangwei/group_DRO/blob/cbbc1c5b06844e46b87e264326b56056d2a437d1/loss.py#L83
+  # vrex specific
+  vrex_lambda: 10000 #0.8 # 1e4 from https://github.com/lingxiaoyuan/ood_mechanics/blob/main/model/main.py
+  # dann specific
+  dann_lambda : 1.0
+  # hhiss
+  hhiss_teacher_tradeoff: 0.5
+  hhiss_roc_threshold: 0.75
+  hhiss_prune_threshold: 0.2
+  hhiss_base_algorithm: 'dro'
+  # siamese
+  siamese_margin: 1.0
+  siamese_p: 2
+  siamese_knn_k: 5
+  use_cp_ssl_pretraining: False
+  use_sp_ssl_pretraining: False
+  use_pretrained_encoders: False # To use existing pretrained encoder, follow the instructions written in model_training/multimodal_enc/main.py
+  freeze_encoders: True
+  freeze_then_finetune: True
+  freeze_then_finetune_epochs: 20
+
+pretraining: # Only relevant if use_ssl_pretraining in the training section is set to True
+  pretraining_type: "contrastive-pairwise" # options: contrastive-ntxent (NT-Xent), contrastive-pairwise (SleepFM Pairwise), contrastive-loo (SleepFM Leave-one-out), regularization (CroSSL VICReg)
+  input_dim: 28
+  epochs: 20
+  batch_size: 64
+  learning_rate: 0.0005
+  dropout: 0.1
+  device: "cuda"  # Change to "cuda" if using GPU
+  use_scheduler: True
+  # below for CroSSL (regularization-vicreg)
+  masking: "random" # options: spatial, temporal, random
+  coverage: 0.9 # 0.9 coverage implies that 10% of the features are zeroed out
+  sim_coeff: 10.0
+  std_coeff: 10.0
+  cov_coeff: 100.0
+  std_const: 0.0001
+
+data:
+  name: "emowatch"
+  cv: "loso" #"walk-forward" only works for ERM #"groupkfold" #loso
+  num_classes: 2
+  feature_dim: '2D'
+  feature_type_list: ['all']  # options:  ['ppg', 'skin-temperature', 'acc', 'time-hrv', 'freq-hrv', non-linear-hrv]
+  zscore_normalization: True
+  use_sleep_path: True
+  participant_normalization: False
+  sleep_normalization: False
+  include_curr_features: True # always true
+  include_sleep_features: False 
+  include_prev_label: False # always false
+  include_time_index: False
+  include_demo_info: False
+  include_sleep_stats: False
+  require_label_normalization: False
+  label_type: 'discrete' # options: 'discrete', 'continuous'
+  users: [ 1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17,
+       18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+       35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51,
+       52, 53, 55, 56, 57, 58, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
+       71, 72, 73, 74, 75, 76, 77, 78, 79, 80]
+  excluded_days: [1,2]
+  random:
+    num_splits: 5
+    split:
+      train: 0.6
+      val: 0.2
+      test: 0.2
+  time-series:
+    start_day: 11
+    valid_size: 4
+    temporal_window: -1 # not applicable
+  loso:
+    valid_size: 10 # changed from 4 for the both dataset
+  groupkfold:
+    valid_size: 4
+  walk-forward:
+    start_day: 11
+    temporal_window: 9 # include train and valid - so if valid_size is 2, then train_size: 7
+    valid_size: 2
+  shuffle: true
+
+results:
+  root_dir: "~/"

@@ -1,0 +1,48 @@
+
+training:
+  subsample: 0.8
+  n_estimators: 1000 # changed from 500
+  min_child_weight: 5
+  max_depth: 4
+  learning_rate: 0.01
+  gamma: 1
+  colsample_bytree: 0.7
+  early_stopping: 20
+  objective: "multi:softprob"
+  eval_metric: ["auc", "mlogloss"] # last metric used for early stopping
+  booster: "gbtree"
+  reg_alpha: 1.0
+  reg_lambda: 6.0
+  verbosity: 2
+
+data:
+  name: "emowatch"
+  cv: "loso" # time-series, random, loso, walk-forward
+  num_classes: 2
+  feature_dim: '1D-stat'
+  use_sleep_path: True
+  include_curr_features: True
+  include_prev_label: False
+  include_time_index: False
+  include_demo_info: False
+  include_sleep_stats: False
+  include_sleep_features: False
+  require_label_normalization: False
+  participant_normalization: False
+  sleep_normalization: False
+  excluded_days: [1,2]
+  time-series:
+    start_day: 28 # 11
+    valid_size: 4
+  loso:
+    valid_size: 10
+  walk-forward:
+    start_day: 11
+    temporal_window: 9 # include train and valid - so if valid_size is 2, then train_size: 7
+    valid_size: 2
+  shuffle: True
+  normalization: False
+  torch_output: False
+
+results:
+  root_dir: "~/"
