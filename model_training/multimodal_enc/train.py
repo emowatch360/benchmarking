@@ -50,10 +50,11 @@ class EarlyStopping:
         return self.best_train_loss, self.best_val_loss, self.best_epochs
 
 class DGMultimodalTrainer:
-    def __init__(self, cfg, pretrained_cp_encoder=[], pretrained_sp_encoder=[], pretrained_cp_aggregator=None,
+    def __init__(self, cfg, chosen_label='', pretrained_cp_encoder=[], pretrained_sp_encoder=[], pretrained_cp_aggregator=None,
                  pretrained_sp_aggregator=None, teacher_model_path=None, print_log_path=None):
         self.print_log_path = print_log_path
         self.cfg = cfg
+        self.chosen_label = chosen_label
         self.cv_type = cfg['data']['cv']
         self.dg_algorithm = cfg['training']['algorithm'] # 'ERM', 'IRM', 'DRO', 'VREX', 'DANN', 'HHISS', 'Siamese'
         if self.dg_algorithm.upper() != 'ERM':
@@ -66,6 +67,8 @@ class DGMultimodalTrainer:
         self.pretrained_sp_aggregator = pretrained_sp_aggregator
         self.freeze_then_finetune = cfg['training'].get('freeze_then_finetune', True)
         self.freeze_then_finetune_epochs = cfg['training'].get('freeze_then_finetune_epochs', 20)
+        self.unfreeze_grace_epochs = cfg['training'].get('unfreeze_grace_epochs', 0)
+        self.continuous_val_tracking = cfg['training'].get('continuous_val_tracking', False)
         # learning rate and early stopping params
         self.lr=cfg['training']['learning_rate']
         self.epochs=cfg['training']['epochs']
@@ -252,9 +255,15 @@ class DGMultimodalTrainer:
                                         'train_roc': train_roc,
                                         'val_loss': avg_val_loss, 'val_roc': val_roc})
             # Early stopping check (in SSL case, after encoders are unfrozen)
-            if not (self.freeze_then_finetune and has_pretrained and epoch <= self.freeze_then_finetune_epochs):
+            early_stop_boundary = self.freeze_then_finetune_epochs + self.unfreeze_grace_epochs
+            protected_phase = self.freeze_then_finetune and has_pretrained and epoch <= early_stop_boundary
+            if self.continuous_val_tracking and self.freeze_then_finetune and has_pretrained \
+                    and epoch == early_stop_boundary + 1:
+                early_stopper.counter = 0
+                early_stopper.early_stop = False
+            if self.continuous_val_tracking or not protected_phase:
                 early_stopper(avg_train_loss, avg_val_loss, epoch, self.model) # needs access to the model to retrieve the best weights
-                if early_stopper.early_stop:
+                if not protected_phase and early_stopper.early_stop:
                     if early_stopper.restore_best and early_stopper.best_model_state is not None:
                         self.model.load_state_dict(early_stopper.best_model_state)
                     self.chosen_train_loss, self.chosen_val_loss, self.chosen_epochs = early_stopper.return_current_best_model_param()
@@ -391,8 +400,33 @@ class DGMultimodalTrainer:
     def save_model(self, model_save_path):
         torch.save(self.model.state_dict(), model_save_path)
     
-    def save_finetuned_encoders(self, pretraining_folder, data_type, pretraining_type,
-                             conv_layers, batch_size, pretrain_epochs, feature_tag='all'):
+    def save_for_deployment(self, path, multimodal_mean, multimodal_std):
+        torch.save({
+            'state_dict': self.model.state_dict(),
+            'model_config': {
+                'physio_input_dim': self.cfg['model']['physio_input_dim'],
+                'sleep_input_dim':  self.cfg['model']['sleep_input_dim'],
+                'demo_input_dim':   self.cfg['model']['demo_input_dim'],
+                'proj_head_dim':    self.cfg['model']['proj_head_dim'],
+                'conv_layers':      self.cfg['model']['conv_layers'],
+                'sp_conv_layers':   self.cfg['model']['sp_conv_layers'],
+                'fcnn_layers':      self.cfg['model']['fcnn_layers'],
+                'output_dim':       self.cfg['model']['output_dim'],
+                'dropout':          self.cfg['training']['dropout'],
+                'feature_split':    self.cfg['model']['feature_split'],
+                'model_type':       self.cfg['model']['model_type'],
+            },
+            'norm_params': {
+                'cp_mean': multimodal_mean[0],
+                'cp_std':  multimodal_std[0],
+                'sp_mean': multimodal_mean[1],
+                'sp_std':  multimodal_std[1],
+            },
+        }, path)
+
+    def save_finetuned_encoders(self, chosen_label, pretraining_folder, data_type, pretraining_type,
+                             conv_layers, batch_size, pretrain_epochs, feature_tag='all', dataset_country='',
+                             fold_tag=''):
         """
         Save finetuned pretrained encoders and aggregators to pretraining folder,
         prefixed with 'finetuned_' and tagged with fold index.
@@ -404,6 +438,8 @@ class DGMultimodalTrainer:
         model_type   = self.cfg['model']['model_type']
         feature_split = self.cfg['model']['feature_split']
         dropout      = self.cfg['training']['dropout']
+        country_prefix = f'{dataset_country}_' if dataset_country else ''
+        fold_suffix = f'_{fold_tag}' if fold_tag else ''
 
         if len(encoders) == 0:
             print(f'No pretrained {data_type} encoders to save.')
@@ -412,7 +448,7 @@ class DGMultimodalTrainer:
         for i, encoder in enumerate(encoders):
             save_path = os.path.join(
                 pretraining_folder,
-                f'finetuned_encoder_{data_type}_{pretraining_type}_{model_type}{conv_layers}'
+                f'finetuned_encoder_{country_prefix}{self.chosen_label}{fold_suffix}_{data_type}_{pretraining_type}_{model_type}{conv_layers}'
                 f'_batch{batch_size}_epoch{pretrain_epochs}_feat_{feature_tag}_{i}_pretrained.pt')
             torch.save({
                 'encoder_state_dict': encoder.state_dict(),
@@ -430,7 +466,7 @@ class DGMultimodalTrainer:
             embedding_dim = conv_layers[-1]
             agg_save_path = os.path.join(
                 pretraining_folder,
-                f'finetuned_aggregator_{data_type}_{pretraining_type}_{model_type}{conv_layers}'
+                f'finetuned_aggregator_{country_prefix}{self.chosen_label}{fold_suffix}_{data_type}_{pretraining_type}_{model_type}{conv_layers}'
                 f'_batch{batch_size}_epoch{pretrain_epochs}_feat_{feature_tag}_pretrained.pt')
             torch.save({
                 'aggregator_state_dict': aggregator.state_dict(),

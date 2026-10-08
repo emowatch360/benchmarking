@@ -19,10 +19,11 @@ from ...utils.reproduce import set_seed, get_dataloader_seed_components
 from ...configs.shared_config import (data_folder, config_folder, seed) # type: ignore
 
 class SSLPretrainer:
-    def __init__(self, cfg, data, data_type='cp'):
+    def __init__(self, cfg, chosen_label, data, data_type='cp'):
 
         # SSL Configs
         self.cfg = cfg
+        self.chosen_label = chosen_label
         self.data_type = data_type
         self.feature_split = cfg['model']['feature_split']  # List that shows the data split
         self.pretrain_model = cfg['model']['model_type']
@@ -253,7 +254,7 @@ class SSLPretrainer:
     def save_encoders(self):
         pretraining_folder = config_folder + '/../multimodal_enc/pretraining/'
         for i, encoder in enumerate(self.encoders):
-            save_path = os.path.join(pretraining_folder, f'encoder_{self.data_type}_{self.pretraining_type}_{self.pretrain_model}{self.conv_layers}_batch{self.batch_size}_epoch{self.epochs}_feat_{self.feature_tag}_{i}_pretrained.pt')
+            save_path = os.path.join(pretraining_folder, f'encoder_{self.chosen_label}_{self.data_type}_{self.pretraining_type}_{self.pretrain_model}{self.conv_layers}_batch{self.batch_size}_epoch{self.epochs}_feat_{self.feature_tag}_{i}_pretrained.pt')
             torch.save({
                 'encoder_state_dict': encoder.state_dict(),
                 'logit_scale': self.logit_scale.item(),
@@ -273,7 +274,7 @@ class SSLPretrainer:
         pretraining_folder = config_folder + '/../multimodal_enc/pretraining/'
         save_path = os.path.join(
             pretraining_folder,
-            f'aggregator_{self.data_type}_{self.pretraining_type}_{self.pretrain_model}{self.conv_layers}_batch{self.batch_size}_epoch{self.epochs}_feat_{self.feature_tag}_pretrained.pt'
+            f'aggregator_{self.chosen_label}_{self.data_type}_{self.pretraining_type}_{self.pretrain_model}{self.conv_layers}_batch{self.batch_size}_epoch{self.epochs}_feat_{self.feature_tag}_pretrained.pt'
         )
         torch.save({
             'aggregator_state_dict': self.aggregator.state_dict(),

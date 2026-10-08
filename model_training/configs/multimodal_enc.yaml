@@ -1,12 +1,12 @@
 model:
-  model_type: "cnn" # options: cnn (convolutional nn), resnet, sn (siamese nn), dann (domain adversarial nn)
+  model_type: "resnet" # options: cnn (convolutional nn), resnet, sn (siamese nn), dann (domain adversarial nn)
   training_type: "finetuning"
   physio_input_dim: 28 # 29
   sleep_input_dim: 28 # 29
   demo_input_dim: 8
   proj_head_dim: 128 # FIXED
-  conv_layers: [128] # [16, 32, 64], [32, 64, 128], [32, 64, 64]
-  sp_conv_layers: [16] # [16, 32, 64], [32, 64, 128], [32, 64, 64]
+  conv_layers: [32] # [16, 32, 64], [32, 64, 128], [32, 64, 64]
+  sp_conv_layers: [8] # [16, 32, 64], [32, 64, 128], [32, 64, 64]
   fcnn_layers: [16] # FIXED
   embedding_dim: 128 # used for siamese network
   output_dim: 2
@@ -42,15 +42,15 @@ training:
   siamese_margin: 1.0
   siamese_p: 2
   siamese_knn_k: 5
-  use_cp_ssl_pretraining: False
-  use_sp_ssl_pretraining: False
+  use_cp_ssl_pretraining: True
+  use_sp_ssl_pretraining: True
   use_pretrained_encoders: False # To use existing pretrained encoder, follow the instructions written in model_training/multimodal_enc/main.py
   freeze_encoders: True
   freeze_then_finetune: True
   freeze_then_finetune_epochs: 20
 
 pretraining: # Only relevant if use_ssl_pretraining in the training section is set to True
-  pretraining_type: "contrastive-pairwise" # options: contrastive-ntxent (NT-Xent), contrastive-pairwise (SleepFM Pairwise), contrastive-loo (SleepFM Leave-one-out), regularization (CroSSL VICReg)
+  pretraining_type: "contrastive-loo" # options: contrastive-ntxent (NT-Xent), contrastive-pairwise (SleepFM Pairwise), contrastive-loo (SleepFM Leave-one-out), regularization (CroSSL VICReg)
   input_dim: 28
   epochs: 20
   batch_size: 64

@@ -114,20 +114,32 @@ class CommonDataLoader:
         return np.load(data_path)
     
     def required_feature_indices(self, feature_type_list):
-        if self.current_features.ndim != 3: # feature indices selection only works for 2D features for now
-            feature_indices = np.arange(self.current_features.shape[1])
-        elif feature_type_list == ['all']:
-            feature_indices = np.arange(self.current_features.shape[2])
+        feature_axis = 2 if self.current_features.ndim == 3 else 1
+        assert len(self.feature_names) == self.current_features.shape[feature_axis], \
+            'feature_names does not match current feature dimension!'
+        if self.sleep_features.size:
+            assert len(self.feature_names) == self.sleep_features.shape[feature_axis], \
+                'feature_names does not match sleep feature dimension!'
+        if feature_type_list == ['all']:
+            feature_indices = np.arange(self.current_features.shape[feature_axis])
         else:
             feature_to_index_dict = {}
+            stat_suffixes = {'mu', 'md', 'mx', 'mn', 'std'}
             for i, feature in enumerate(self.feature_names):
-                feature_to_index_dict[feature]=i
+                feature = str(feature)
+                feature_to_index_dict.setdefault(feature, []).append(i)
+                feature_parts = feature.rsplit(' ', 1)
+                if len(feature_parts) == 2 and feature_parts[1] in stat_suffixes:
+                    base_feature = feature_parts[0]
+                    feature_to_index_dict.setdefault(base_feature, []).append(i)
             feature_indices = []
             for feature_type in feature_type_list:
                 # feature types are: ppg, skin-temperature, acc, time-hrv, freq-hrv, non-linear-hrv
                 assert feature_type in self.feature_type_dict.keys(), f'Incorrect feature type: {feature_type}'
                 features_of_interest = self.feature_type_dict[feature_type]
-                feature_indices += [feature_to_index_dict[feature] for feature in features_of_interest]
+                for feature in features_of_interest:
+                    assert feature in feature_to_index_dict, f'Missing feature: {feature}'
+                    feature_indices += feature_to_index_dict[feature]
         return feature_indices
 
     def normalize_labels_per_user(self):
@@ -219,6 +231,7 @@ class CommonDataLoader:
         if include_sleep_stats:
             non_temporal_mean_list.append(zscores['sleep_stat_mean'])
             non_temporal_std_list.append(zscores['sleep_stat_std'])
+        assert not include_prev_label, 'Normalization parameters for prev label features are not supported!'
 
         if non_temporal_mean_list:
             non_temporal_mean = torch.FloatTensor(np.concatenate(non_temporal_mean_list))
@@ -244,7 +257,7 @@ class CommonDataLoader:
                           as_tensor=False):
         if include_curr_features:
             assert not np.any(np.isnan(self.current_features)), 'Some values are NaN!'
-            self.features = np.hstack((self.features, self.current_features))
+            self.features = np.hstack((self.features, self.current_features[:, self.feature_indices]))
         if include_time_index:
             self.features = np.hstack((self.features, self.time_features))
         if include_demo_info:
@@ -252,7 +265,7 @@ class CommonDataLoader:
         if include_sleep_stats:
             self.features = np.hstack((self.features, self.sleep_stats))
         if include_sleep_features:
-            self.features = np.hstack((self.features, self.sleep_features))
+            self.features = np.hstack((self.features, self.sleep_features[:, self.feature_indices]))
         if include_prev_label:
             self.features = np.hstack((self.features, self.prev_label_features))
         assert self.features.shape[0] == self.num_samples
@@ -322,6 +335,12 @@ class CommonDataLoader:
         Returns the PID labels for the given indices.
         """
         return self.pid_labels[idxs]
+
+    def get_day_labels(self, idxs):
+        """
+        Returns the day labels for the given indices.
+        """
+        return self.day_labels[idxs]
     
     def get_time_indices(self, idxs):
         """

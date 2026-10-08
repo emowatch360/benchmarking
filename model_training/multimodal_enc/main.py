@@ -1,6 +1,7 @@
 # main.py
 import os
 import sys
+import copy
 import yaml
 import numpy as np # type: ignore
 import torch
@@ -65,7 +66,7 @@ def perform_multimodal_enc_training(chosen_label, session, epoch=15,
     curr_time = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
     feature_type_list = cfg['data']['feature_type_list']
     feature_tag = 'all' if feature_type_list == ['all'] else '-'.join(sorted(feature_type_list))
-    results_folder = os.path.join(result_root_folder, f'{model_name}_{feature_description}_{cv_type}_{algorithm}_SSL-{ssl_model}_feat_{feature_tag}')
+    results_folder = os.path.join(result_root_folder, f'{dataset_country}_{model_name}_{feature_description}_{cv_type}_{algorithm}_SSL-{ssl_model}_feat_{feature_tag}')
     data_path, all_result_path = create_data_and_save_paths(model_name=model_name,
                                                             config=cfg,
                                                             data_folder=numpy_finetune_folder,
@@ -119,10 +120,16 @@ def perform_multimodal_enc_training(chosen_label, session, epoch=15,
     # SSL Pre-training (at this point, encoders are loaded or pretrained from scratch)
     norm_params = (multimodal_mean[0], multimodal_std[0]) # cp data
     sleep_norm_params = (multimodal_mean[1], multimodal_std[1]) # sleep data
-    pretrained_cp_encoder, pretrained_cp_aggregator = perform_ssl_pretraining(pretrain_cp_data_path, norm_params, model_name='multimodal_enc',
-                                                                              data_type='cp', config=cfg, save=True)
-    pretrained_sp_encoder, pretrained_sp_aggregator = perform_ssl_pretraining(pretrain_sp_data_path, sleep_norm_params, model_name='multimodal_enc',
-                                                                              data_type='sp', config=cfg, save=True)
+    pretrain_ssl_per_fold = (cv_type in ('loso', 'walk-forward')) and (
+        cfg['training']['use_cp_ssl_pretraining'] or cfg['training']['use_sp_ssl_pretraining'])
+    if pretrain_ssl_per_fold:
+        pretrained_cp_encoder, pretrained_cp_aggregator = [], None
+        pretrained_sp_encoder, pretrained_sp_aggregator = [], None
+    else:
+        pretrained_cp_encoder, pretrained_cp_aggregator = perform_ssl_pretraining(chosen_label, pretrain_cp_data_path, norm_params, model_name='multimodal_enc',
+                                                                                  data_type='cp', config=cfg, save=True, dataset_country=dataset_country)
+        pretrained_sp_encoder, pretrained_sp_aggregator = perform_ssl_pretraining(chosen_label, pretrain_sp_data_path, sleep_norm_params, model_name='multimodal_enc',
+                                                                                  data_type='sp', config=cfg, save=True, dataset_country=dataset_country)
     set_seed(seed) # Also necessary for pretraining to be consistent
     
     with open(print_log_path, 'a') as log_file:
@@ -145,7 +152,8 @@ def perform_multimodal_enc_training(chosen_label, session, epoch=15,
     else:
         raise ValueError(f'CV type {cv_type} not supported for this training script!')
     results = []
-    for iter, (train_idx, val_idx, test_idx) in enumerate(cv_obj.split(all_data_tensor, None, group_labels)):
+    cv_splits = list(cv_obj.split(all_data_tensor, None, group_labels))
+    for iter, (train_idx, val_idx, test_idx) in enumerate(cv_splits):
         print(f'Starting Iteration {iter}!')
         iter_start_time = time.time()
         with open(print_log_path, 'a') as log_file:
@@ -159,6 +167,35 @@ def perform_multimodal_enc_training(chosen_label, session, epoch=15,
             with open(print_log_path, 'a') as log_file:
                 log_file.write('Skipping iteration because no test samples remain after excluding LOSO test days 1 and 2.\n')
             continue
+        if pretrain_ssl_per_fold:
+            if cv_type == 'loso':
+                held_out_subject = int(np.unique(group_labels[test_idx])[0])
+                fold_tag = f'heldout{held_out_subject}'
+                fold_subject_ids = np.unique(group_labels[np.concatenate([train_idx, val_idx])])
+                pretrained_cp_encoder, pretrained_cp_aggregator = perform_ssl_pretraining(
+                    chosen_label, pretrain_cp_data_path, norm_params, model_name='multimodal_enc',
+                    data_type='cp', config=cfg, save=True,
+                    subject_ids=fold_subject_ids, held_out_subject=held_out_subject, dataset_country=dataset_country)
+                pretrained_sp_encoder, pretrained_sp_aggregator = perform_ssl_pretraining(
+                    chosen_label, pretrain_sp_data_path, sleep_norm_params, model_name='multimodal_enc',
+                    data_type='sp', config=cfg, save=True,
+                    subject_ids=fold_subject_ids, held_out_subject=held_out_subject, dataset_country=dataset_country)
+                with open(print_log_path, 'a') as log_file:
+                    log_file.write(f'Fold {iter+1}: SSL pretraining used {len(fold_subject_ids)} subjects, held-out subject {held_out_subject}.\n')
+            elif cv_type == 'walk-forward':
+                day_cutoff = int(np.unique(group_labels[test_idx])[0])
+                fold_tag = f'walkfwd_test{day_cutoff}'
+                pretrained_cp_encoder, pretrained_cp_aggregator = perform_ssl_pretraining(
+                    chosen_label, pretrain_cp_data_path, norm_params, model_name='multimodal_enc',
+                    data_type='cp', config=cfg, save=True,
+                    day_cutoff=day_cutoff, dataset_country=dataset_country)
+                pretrained_sp_encoder, pretrained_sp_aggregator = perform_ssl_pretraining(
+                    chosen_label, pretrain_sp_data_path, sleep_norm_params, model_name='multimodal_enc',
+                    data_type='sp', config=cfg, save=True,
+                    day_cutoff=day_cutoff, dataset_country=dataset_country)
+                with open(print_log_path, 'a') as log_file:
+                    log_file.write(f'Fold {iter+1}: SSL pretraining restricted to days < {day_cutoff}.\n')
+            set_seed(seed)
         """ Get specific train, valid, test split """
         train_set, val_set, test_set = data_obj.create_tensor_datasets_from_indices(all_data_tensor, group_labels,
                                                                     train_idx, val_idx, test_idx, is_multimodal=True,
@@ -181,21 +218,28 @@ def perform_multimodal_enc_training(chosen_label, session, epoch=15,
         cfg['model']['physio_input_dim'] = list(all_data_tensor.tensors[0].shape)[-1]
         cfg['model']['sleep_input_dim'] = list(all_data_tensor.tensors[1].shape)[-1]
         cfg['model']['demo_input_dim'] = list(all_data_tensor.tensors[2].shape)[-1]
+        fold_pretrained_cp_encoder = [copy.deepcopy(encoder) for encoder in pretrained_cp_encoder]
+        fold_pretrained_sp_encoder = [copy.deepcopy(encoder) for encoder in pretrained_sp_encoder]
+        fold_pretrained_cp_aggregator = copy.deepcopy(pretrained_cp_aggregator) if pretrained_cp_aggregator is not None else None
+        fold_pretrained_sp_aggregator = copy.deepcopy(pretrained_sp_aggregator) if pretrained_sp_aggregator is not None else None
         if algorithm.upper() == 'HHISS':
             multimodal_encoder_net_obj = DGMultimodalTrainer(cfg,
-                                                             pretrained_cp_encoder=pretrained_cp_encoder,
-                                                             pretrained_sp_encoder=pretrained_sp_encoder,
-                                                             pretrained_cp_aggregator=pretrained_cp_aggregator,
-                                                             pretrained_sp_aggregator=pretrained_sp_aggregator,
+                                                             chosen_label=chosen_label,
+                                                             pretrained_cp_encoder=fold_pretrained_cp_encoder,
+                                                             pretrained_sp_encoder=fold_pretrained_sp_encoder,
+                                                             pretrained_cp_aggregator=fold_pretrained_cp_aggregator,
+                                                             pretrained_sp_aggregator=fold_pretrained_sp_aggregator,
                                                              teacher_model_path=teacher_model_path_template.format(iter+1),
                                                              print_log_path=print_log_path)
         elif algorithm.upper() == 'SIAMESE':
             multimodal_encoder_net_obj = SiameseTrainer(cfg, print_log_path=print_log_path)
         else:
-            multimodal_encoder_net_obj = DGMultimodalTrainer(cfg, pretrained_cp_encoder=pretrained_cp_encoder,
-                                                             pretrained_sp_encoder=pretrained_sp_encoder,
-                                                             pretrained_cp_aggregator=pretrained_cp_aggregator,
-                                                             pretrained_sp_aggregator=pretrained_sp_aggregator,
+            multimodal_encoder_net_obj = DGMultimodalTrainer(cfg,
+                                                             chosen_label=chosen_label,
+                                                             pretrained_cp_encoder=fold_pretrained_cp_encoder,
+                                                             pretrained_sp_encoder=fold_pretrained_sp_encoder,
+                                                             pretrained_cp_aggregator=fold_pretrained_cp_aggregator,
+                                                             pretrained_sp_aggregator=fold_pretrained_sp_aggregator,
                                                              print_log_path=print_log_path)
         train_valid_metrics = multimodal_encoder_net_obj.train(train_loader=train_loader, val_loader=val_loader)
         if save:
@@ -207,11 +251,36 @@ def perform_multimodal_enc_training(chosen_label, session, epoch=15,
             if cfg['training']['algorithm'].upper() == cfg['training']['hhiss_base_algorithm'].upper():
                 model_save_path = os.path.join(log_folder, f'model_iter{iter+1}.pt')
                 multimodal_encoder_net_obj.save_model(model_save_path)
+            if pretrain_ssl_per_fold:
+                if cfg['training']['use_cp_ssl_pretraining']:
+                    multimodal_encoder_net_obj.save_finetuned_encoders(
+                        chosen_label=chosen_label,
+                        pretraining_folder=config_folder + '/../multimodal_enc/pretraining/',
+                        data_type='cp',
+                        pretraining_type=cfg['pretraining']['pretraining_type'],
+                        conv_layers=cfg['model']['conv_layers'],
+                        batch_size=cfg['pretraining']['batch_size'],
+                        pretrain_epochs=cfg['pretraining']['epochs'],
+                        feature_tag=feature_tag,
+                        dataset_country=dataset_country,
+                        fold_tag=fold_tag)
+                if cfg['training']['use_sp_ssl_pretraining']:
+                    multimodal_encoder_net_obj.save_finetuned_encoders(
+                        chosen_label=chosen_label,
+                        pretraining_folder=config_folder + '/../multimodal_enc/pretraining/',
+                        data_type='sp',
+                        pretraining_type=cfg['pretraining']['pretraining_type'],
+                        conv_layers=cfg['model']['sp_conv_layers'],
+                        batch_size=cfg['pretraining']['batch_size'],
+                        pretrain_epochs=cfg['pretraining']['epochs'],
+                        feature_tag=feature_tag,
+                        dataset_country=dataset_country,
+                        fold_tag=fold_tag)
         with open(print_log_path, 'a') as log_file:
             log_file.write("\n Final Evaluation on Test Set:\n")
         y_train_pred_labels, y_train_prob, y_train = multimodal_encoder_net_obj.predict_labels(train_loader)
         y_val_pred_labels, y_val_prob, y_val = multimodal_encoder_net_obj.predict_labels(val_loader)
-        _, y_test_prob, y_test = multimodal_encoder_net_obj.predict_labels(test_loader)
+        y_test_pred_labels, y_test_prob, y_test = multimodal_encoder_net_obj.predict_labels(test_loader)
         train_dict = compute_metrics(y_train_pred_labels, y_train_prob, y_train, 'train')
         val_dict = compute_metrics(y_val_pred_labels, y_val_prob, y_val, 'val', print_log_path=print_log_path)
         default_test_dict = compute_metrics((y_test_prob[:,1]>=0.5).astype(int), y_test_prob, y_test, 'test', prefix='default-', print_log_path=print_log_path)
@@ -220,7 +289,21 @@ def perform_multimodal_enc_training(chosen_label, session, epoch=15,
         # log the chosen threshold
         with open(print_log_path, 'a') as log_file:
             log_file.write(f'Chosen threshold based on validation set: {thresh}\n')
-        test_dict = compute_metrics((y_test_prob[:,1] >= thresh).astype(int), y_test_prob, y_test, 'test', print_log_path=print_log_path)
+        y_test_pred_labels_with_threshold = (y_test_prob[:,1] >= thresh).astype(int)
+        test_dict = compute_metrics(y_test_pred_labels_with_threshold, y_test_prob, y_test, 'test', print_log_path=print_log_path)
+        if save:
+            pred_df = pd.DataFrame({
+                'pid': data_obj.get_pid_labels(test_idx),
+                'day_id': data_obj.get_day_labels(test_idx),
+                'y_test': y_test,
+                'y_test_pred_labels': y_test_pred_labels,
+                'y_test_pred_labels_with_threshold': y_test_pred_labels_with_threshold,
+                'validation_threshold': np.around(thresh, decimals=3),
+                'label0_pred_prob': y_test_prob[:, 0],
+                'label1_pred_prob': y_test_prob[:, 1],
+                'time_index': data_obj.get_time_indices(test_idx)
+            })
+            pred_df.to_csv(os.path.join(log_folder, f'predictions_iter{iter+1}.csv'), index=False)
         model_param_dict = multimodal_encoder_net_obj.return_model_param_dict()
         overall_dict = {**train_dict, **val_dict, **default_test_dict, **test_dict, **model_param_dict}
         result_row = pd.DataFrame.from_dict([overall_dict])
@@ -230,26 +313,6 @@ def perform_multimodal_enc_training(chosen_label, session, epoch=15,
     all_result_df = pd.concat(results, ignore_index=True)
     mean_result_df = all_result_df.mean(axis=0)
     end_time = time.time()
-    
-    if save and cfg['training']['use_cp_ssl_pretraining']:
-        multimodal_encoder_net_obj.save_finetuned_encoders(
-            pretraining_folder=config_folder + '/../multimodal_enc/pretraining/',
-            data_type='cp',
-            pretraining_type=cfg['pretraining']['pretraining_type'],
-            conv_layers=cfg['model']['conv_layers'],
-            batch_size=cfg['pretraining']['batch_size'],
-            pretrain_epochs=cfg['pretraining']['epochs'],
-            feature_tag=feature_tag)
-        
-    if save and cfg['training']['use_sp_ssl_pretraining']:
-        multimodal_encoder_net_obj.save_finetuned_encoders(
-            pretraining_folder=config_folder + '/../multimodal_enc/pretraining/',
-            data_type='sp',
-            pretraining_type=cfg['pretraining']['pretraining_type'],
-            conv_layers=cfg['model']['sp_conv_layers'],
-            batch_size=cfg['pretraining']['batch_size'],
-            pretrain_epochs=cfg['pretraining']['epochs'],
-            feature_tag=feature_tag)
     
     with open(print_log_path, 'a') as log_file:
         log_file.write(f'Macro Avg F1-score (best threshold): {mean_result_df['macro-avg F1-score']}\n')

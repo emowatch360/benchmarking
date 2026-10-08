@@ -53,15 +53,29 @@ def _required_feature_indices(feature_names, feature_axis_size, feature_type_lis
 
     return np.array(feature_indices)
 
-def _select_pretraining_features(pretrain_data_path, data_key, feature_type_list):
+def _select_pretraining_features(pretrain_data_path, data_key, feature_type_list, subject_ids=None, day_cutoff=None):
     with np.load(pretrain_data_path) as pretrain_npz:
         pretrain_data = pretrain_npz[data_key]
         feature_name_key = 'sleep_feature_names' if data_key == 'sleep_features' else 'feature_names'
         if feature_name_key not in pretrain_npz.files:
             feature_name_key = 'feature_names'
         feature_names = pretrain_npz[feature_name_key]
+        pid_labels = pretrain_npz['pid_labels']
+        day_labels = pretrain_npz['day_labels']
 
     assert pretrain_data.ndim == 3, f'{data_key} must be 3D with shape (samples, time, features)!'
+    assert pid_labels.shape[0] == pretrain_data.shape[0], \
+        f'pid_labels does not match {data_key} sample dimension!'
+    assert day_labels.shape[0] == pretrain_data.shape[0], \
+        f'day_labels does not match {data_key} sample dimension!'
+    row_mask = np.ones(pretrain_data.shape[0], dtype=bool)
+    if subject_ids is not None:
+        row_mask &= np.isin(pid_labels, subject_ids)
+    if day_cutoff is not None:
+        row_mask &= (day_labels < day_cutoff)
+    if subject_ids is not None or day_cutoff is not None:
+        assert np.any(row_mask), 'No pretraining samples found for the requested subject/day subset!'
+        pretrain_data = pretrain_data[row_mask]
     feature_axis = 2
     assert len(feature_names) == pretrain_data.shape[feature_axis], \
         f'{feature_name_key} does not match {data_key} feature dimension!'
@@ -82,8 +96,9 @@ def _select_norm_params(norm_params, feature_indices, original_feature_count, se
     feature_indices_tensor = torch.as_tensor(feature_indices, dtype=torch.long, device=norm_mean.device)
     return norm_mean[feature_indices_tensor], norm_std[feature_indices_tensor.to(norm_std.device)]
 
-def perform_ssl_pretraining(pretrain_data_path, norm_params, 
-                            model_name='multimodal_enc', data_type='cp', config=None, save=False):
+def perform_ssl_pretraining(chosen_label, pretrain_data_path, norm_params,
+                            model_name='multimodal_enc', data_type='cp', config=None, save=False,
+                            subject_ids=None, held_out_subject=None, day_cutoff=None, dataset_country=None):
     
     # DataLoader seed setup
     type_seed = seed if data_type == 'cp' else seed + 1
@@ -105,6 +120,13 @@ def perform_ssl_pretraining(pretrain_data_path, norm_params,
     epoch = cfg['pretraining']['epochs']
     feature_type_list = cfg['data']['feature_type_list']
     feature_tag = 'all' if feature_type_list == ['all'] else '-'.join(sorted(feature_type_list))
+    country_prefix = f'{dataset_country}_' if dataset_country is not None else ''
+    if held_out_subject is not None:
+        pretrain_tag = f'{country_prefix}heldout{held_out_subject}'
+    elif day_cutoff is not None:
+        pretrain_tag = f'{country_prefix}walkfwd_test{day_cutoff}'
+    else:
+        pretrain_tag = f'{country_prefix}{chosen_label}'
 
     pretrained_encoder = [] # If use_cp_ssl_pretraining is False, pretrained_cp_encoder will be None. In train.py and multimodal encoder, it will skip the appropriate SSL code if it is None.
     pretrained_aggregator = None
@@ -115,7 +137,7 @@ def perform_ssl_pretraining(pretrain_data_path, norm_params,
 
     # Build the path for encoder 0 as a proxy — if it exists, all encoders exist
     enc_check_path = os.path.join(pretraining_folder, 
-        f'encoder_{data_type}_{pretraining_type}_{model_type}{conv_layers}_batch{batch_size}_epoch{epoch}_feat_{feature_tag}_0_pretrained.pt')
+        f'encoder_{pretrain_tag}_{data_type}_{pretraining_type}_{model_type}{conv_layers}_batch{batch_size}_epoch{epoch}_feat_{feature_tag}_0_pretrained.pt')
     encoders_already_saved = os.path.exists(enc_check_path)
     # If there are pretrained encoders to use:
     if encoders_already_saved or use_pretrained_encoders:
@@ -123,7 +145,7 @@ def perform_ssl_pretraining(pretrain_data_path, norm_params,
         # Naming convention: "encoder_cp_{i}_pretrained" for i in [1, 2, ..., len(feature_split)]
         # MAKE SURE THAT THE MODEL TYPE SPECIFIED IN multimodal_enc.yaml for pretraining matches that of the encoder being loaded.
         for i in range(0, len(cfg['model']['feature_split'])):
-            enc_path = os.path.join(pretraining_folder, f'encoder_{data_type}_{pretraining_type}_{model_type}{conv_layers}_batch{batch_size}_epoch{epoch}_feat_{feature_tag}_{i}_pretrained.pt')
+            enc_path = os.path.join(pretraining_folder, f'encoder_{pretrain_tag}_{data_type}_{pretraining_type}_{model_type}{conv_layers}_batch{batch_size}_epoch{epoch}_feat_{feature_tag}_{i}_pretrained.pt')
             enc_checkpoint = torch.load(enc_path)
             if 'logit_scale' in enc_checkpoint:
                 logit_scale_value = enc_checkpoint['logit_scale']
@@ -147,7 +169,7 @@ def perform_ssl_pretraining(pretrain_data_path, norm_params,
         if pretraining_type == 'regularization-vicreg':
             agg_path = os.path.join(
             pretraining_folder,
-            f"aggregator_{data_type}_{pretraining_type}_{model_type}{conv_layers}_batch{batch_size}_epoch{epoch}_feat_{feature_tag}_pretrained.pt")
+            f"aggregator_{pretrain_tag}_{data_type}_{pretraining_type}_{model_type}{conv_layers}_batch{batch_size}_epoch{epoch}_feat_{feature_tag}_pretrained.pt")
             agg_checkpoint = torch.load(agg_path)
             agg_config = agg_checkpoint['aggregator_config']
             pretrained_aggregator = CroSSLAggregator(
@@ -163,7 +185,7 @@ def perform_ssl_pretraining(pretrain_data_path, norm_params,
         # Load and normalize pretraining data
         data_key = 'features' if data_type == 'cp' else 'sleep_features'
         pretrain_data, feature_indices, original_feature_count = _select_pretraining_features(
-            pretrain_data_path, data_key, feature_type_list)
+            pretrain_data_path, data_key, feature_type_list, subject_ids=subject_ids, day_cutoff=day_cutoff)
         pretrain_set = torch.FloatTensor(pretrain_data)
         pretrain_mean, pretrain_std = _select_norm_params(
             norm_params, feature_indices, original_feature_count=original_feature_count,
@@ -171,7 +193,7 @@ def perform_ssl_pretraining(pretrain_data_path, norm_params,
         pretrain_set = perform_zscore_normalization_pretraining(pretrain_set, mean=pretrain_mean, std=pretrain_std)
         pretrain_set = pretrain_set[torch.randperm(pretrain_set.shape[0], generator=generator)] # Random shuffle
         # Perform encoder pretraining
-        ssl_pretrainer_obj = SSLPretrainer(cfg, pretrain_set, data_type)
+        ssl_pretrainer_obj = SSLPretrainer(cfg, pretrain_tag, pretrain_set, data_type)
         ssl_pretrainer_obj.train()
         pretrained_encoder = ssl_pretrainer_obj.get_encoders()
         for encoder in pretrained_encoder:
