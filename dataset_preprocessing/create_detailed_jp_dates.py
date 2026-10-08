@@ -2,8 +2,8 @@ import os
 import pandas as pd
 
 data_folder = '/data/emowatch/emowatch/'
-dates_path = os.path.join(data_folder, 'c1_start_end_dates.csv')
-detailed_dates_path = os.path.join(data_folder, 'detailed_c1_start_end_dates.csv')
+dates_path = os.path.join(data_folder, 'jp_start_end_dates.csv')
+detailed_dates_path = os.path.join(data_folder, 'detailed_jp_start_end_dates.csv')
 dates_df = pd.read_csv(dates_path)
 
 # current dates_df columns: ['pid', 'start date', 'end date']
@@ -36,4 +36,4 @@ for idx, row in dates_df.iterrows():
             assert current_date.strftime('%Y/%m/%d') == end_date_str, f'End date mismatch for pid={pid}'
 detailed_dates_df = pd.DataFrame(detailed_dates_data)
 detailed_dates_df.to_csv(detailed_dates_path, index=False)
-print(f'Detailed C1 start-end dates saved to {detailed_dates_path}')
+print(f'Detailed JP start-end dates saved to {detailed_dates_path}')

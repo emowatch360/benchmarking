@@ -5,7 +5,7 @@ from datetime import datetime
 from utils import convert_to_minutes
 from config import (ROOT_FOLDER)
 
-dataset_country = 'C1'
+dataset_country = 'JP'
 data_path = os.path.join(ROOT_FOLDER, f'rawdata_{dataset_country.lower()}')
 questionnaire_file = 'Questionnaire_09-01-2025.csv'
 input_path = os.path.join(data_path, questionnaire_file)
@@ -17,7 +17,7 @@ output_cols = ['valence_current', 'valence_ideal', 'arousal_current', 'arousal_i
 				'tired_current', 'tired_ideal', 'stressed_current', 'stressed_ideal',
 				'work_ornot', 'work_place', 'work_concentration', 'work_performance', 
 				'sleep_quality', 'body_condition', 'panas_positive', 'panas_negative']
-first_date = '2024/11/04' # applicable to c1 dataset only
+first_date = '2024/11/04' # applicable to jp dataset only
 
 def modify_date(curr_datetime_str, first_date_str):
 	curr_date_str = curr_datetime_str.split(' ')[0]

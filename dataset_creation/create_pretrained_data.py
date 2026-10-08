@@ -4,7 +4,7 @@ from emowatch_utils import *
 
 # labels = ['valence_current', 'arousal_current', 'stressed_current'] #['stress_level'] #['valence_current', 'arousal_current', 'stressed_current'] #, 'tired_current'] #, # stress_level
 ds_info = get_dataset_dict('emowatch')
-dataset_country = 'c1'
+dataset_country = 'jp'
 assert ds_info['dataset-country'].lower() == dataset_country.lower(), "Dataset country mismatch!"
 ds_info['feature-dim'] = '2D' # always 2D
 num_class = 2

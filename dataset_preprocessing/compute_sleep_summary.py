@@ -4,7 +4,7 @@ import pandas as pd
 from utils import convert_to_minutes
 
 hrv_folder = '/data/emowatch/emowatch/hrv_indices_sleep'
-sleep_csvs = ['sleep_summary_c1_cleaned.csv', 'sleep_summary_c2ins_cleaned.csv', 'sleep_summary_c2com_cleaned.csv']
+sleep_csvs = ['sleep_summary_jp_cleaned.csv', 'sleep_summary_nus_cleaned.csv', 'sleep_summary_oac_cleaned.csv']
 save_path = '/data/emowatch/emowatch/sleep_summary_all.csv'
 
 dfs = []
@@ -27,7 +27,7 @@ df_all.to_csv(save_path, index=False)
 #     pid_folder = os.path.join(hrv_folder_path, pid)
 #     if not os.path.isdir(pid_folder):
 #         continue
-#     if not ('MM' in pid or 'pid' in pid or 'c2com' in pid):
+#     if not ('MM' in pid or 'pid' in pid or 'oac' in pid):
 #         continue
 #     all_days = os.listdir(pid_folder)
 #     for day in all_days:

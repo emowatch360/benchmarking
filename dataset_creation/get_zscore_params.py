@@ -9,7 +9,7 @@ from ..model_training.configs.shared_config import data_folder # type: ignore
 FIXED_DAYS = ['d01', 'd02']
 MIN_VALID_MINUTES = 60
 SAVE_PATH = data_folder + 'numpy_arrays_pretraining/2class/both_features28_epoch30/zscore_params.npz'
-DATASET_COUNTRIES = ['c1', 'c2']
+DATASET_COUNTRIES = ['jp', 'sg']
 SLEEP_STAT_FEATURE_NAMES = [
     'duration', 'Rem_per', 'Deep_per', 'Light_per', 'Awake_per',
     'start_time', 'end_time'
@@ -23,7 +23,7 @@ TIME_UNIFORM_MIN = 0
 TIME_UNIFORM_MAX = 1439
 
 PID_TO_REMOVE = [
-    'MM_12', 'c2com02', 'c2com16', 'pid02', 'pid04', 'pid05', 'pid07', 'pid11',
+    'MM_12', 'oac02', 'oac16', 'pid02', 'pid04', 'pid05', 'pid07', 'pid11',
     'pid14', 'pid16', 'pid18', 'pid24', 'pid28', 'pid29', 'pid30', 'pid33',
     'pid34', 'pid32'
 ]
@@ -32,11 +32,11 @@ PID_TO_REMOVE = [
 def build_ds_info(dataset_country):
     ds_info = get_dataset_dict('emowatch')
     ds_info['dataset-country'] = dataset_country
-    if dataset_country == 'c1':
+    if dataset_country == 'jp':
         orig_pid_list = ['MM_' + f'{pid:02d}' for pid in range(1, 46)]
         ds_info['label-type'] = 'continuous'
-    elif dataset_country == 'c2':
-        orig_pid_list = ['c2com' + f'{idx:02d}' for idx in range(1, 20)]
+    elif dataset_country == 'sg':
+        orig_pid_list = ['oac' + f'{idx:02d}' for idx in range(1, 20)]
         orig_pid_list += ['pid' + f'{idx:02d}' for idx in range(1, 35)]
         ds_info['label-type'] = 'likert'
     else:

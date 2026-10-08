@@ -48,5 +48,5 @@ Dataset creation assumes that preprocessing has already generated:
 2) **Processed label table**
 3) **Demographics table**
 4) (Optional, if `include_sleep=True`) **Sleep features + sleep summary**
-For C2 only, date continuity checks use `ds_info['c2-dates-path]`
+For SG only, date continuity checks use `ds_info['sg-dates-path]`
 All of the above paths are defined in `data_config.py`

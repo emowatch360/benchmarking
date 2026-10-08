@@ -45,7 +45,7 @@ class CrossValidator:
         if np.any(groups==0):
             num_zero_groups = np.sum(groups==0)
             print(f'There are {num_zero_groups} in the dataset! Ignoring for now')
-        assert (np.min(groups) == 0) or (np.min(groups) == 1) or (np.min(groups) == 2) # two for sleep, 0 exception is only for c2com10 day0
+        assert (np.min(groups) == 0) or (np.min(groups) == 1) or (np.min(groups) == 2) # two for sleep, 0 exception is only for oac10 day0
         assert (np.max(groups) == n_unique_groups-1) or (np.max(groups) == n_unique_groups) or (np.max(groups) == n_unique_groups+1) # for sleep where day1 is missing
         for test_group in np.arange(self.start_group_idx, np.max(groups)+1):
             test_idx = np.flatnonzero(np.isin(groups, test_group))
@@ -68,7 +68,7 @@ class CrossValidator:
         if np.any(groups==0):
             num_zero_groups = np.sum(groups==0)
             print(f'There are {num_zero_groups} in the dataset! Ignoring for now')
-        assert (np.min(groups) == 0) or (np.min(groups) == 1) or (np.min(groups) == 2) # two for sleep, 0 exception is only for c2com10 day0
+        assert (np.min(groups) == 0) or (np.min(groups) == 1) or (np.min(groups) == 2) # two for sleep, 0 exception is only for oac10 day0
         assert (np.max(groups) == n_unique_groups-1) or (np.max(groups) == n_unique_groups) or (np.max(groups) == n_unique_groups+1) # for sleep where day1 is missing
         # assign the test group randomly instead of in order
         # sanity check to see if order matters

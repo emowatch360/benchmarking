@@ -11,7 +11,7 @@ inf_script = 'main.py'
 epoch = '30'
 cv_type = 'walk-forward' # 'walk-forward' or 'loso'
 setting = 'single_run' # 'feature_combination_eval' or 'hyperparameter_tuning' or 'single_run'
-dataset_country = 'c2' # options: both, c1, c2
+dataset_country = 'sg' # options: both, jp, sg
 
 algorithms_list = ['ERM'] #['ERM','VREX','IRM','DRO','Siamese','DANN','HHISS']
 config = load_config(os.path.join(config_folder, 'multimodal_enc.yaml'))

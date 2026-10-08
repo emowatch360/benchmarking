@@ -1,4 +1,4 @@
-# combine datasets from two different dataset countries (e.g., 'c1' and 'c2')
+# combine datasets from two different dataset countries (e.g., 'jp' and 'sg')
 import os
 import sys
 import numpy as np
@@ -30,91 +30,91 @@ def merge_and_save_datasets(
         save_path = os.path.join(data_folder, f'{num_class}class', f'both_features{feature_dim}_epoch{context_min}',
                             f'all_emowatch_{feature_type}_{label_str}{sleep_str}_finetuning{filter_str}{feature_norm_str}.npz')
         
-    # ================ Load C1/C2 data ================
-    c1_load_path = os.path.join(data_folder, f'{num_class}class', f'c1_features{feature_dim}_epoch{context_min}',
+    # ================ Load JP/SG data ================
+    jp_load_path = os.path.join(data_folder, f'{num_class}class', f'jp_features{feature_dim}_epoch{context_min}',
                             f'all_emowatch_{feature_type}_{label_str}{sleep_str}_finetuning.npz')
     label_str = label_str if label_str != 'stressed_current' else 'stress_level'
-    c2_load_path = os.path.join(data_folder, f'{num_class}class', f'c2_features{feature_dim}_epoch{context_min}',
+    sg_load_path = os.path.join(data_folder, f'{num_class}class', f'sg_features{feature_dim}_epoch{context_min}',
                             f'all_emowatch_{feature_type}_{label_str}{sleep_str}_finetuning.npz')
 
-    c1_npz = np.load(c1_load_path)
-    c2_npz = np.load(c2_load_path)
-    c1_data = {k: c1_npz[k].copy() for k in c1_npz.files}
-    c2_data = {k: c2_npz[k].copy() for k in c2_npz.files}
-    c1_npz.close()
-    c2_npz.close()
+    jp_npz = np.load(jp_load_path)
+    sg_npz = np.load(sg_load_path)
+    jp_data = {k: jp_npz[k].copy() for k in jp_npz.files}
+    sg_data = {k: sg_npz[k].copy() for k in sg_npz.files}
+    jp_npz.close()
+    sg_npz.close()
 
     # ================ Perform Feature Normalization ================
     if feature_normalization:
-        # C1 data
-        c1_features_all = c1_data['features']
+        # JP data
+        jp_features_all = jp_data['features']
         if include_sleep:
-            c1_sleep_features_all = c1_data['sleep_features']
-            c1_sleep_statistics_all = c1_data['sleep_statistics']
-        c1_unq_str_pids = np.unique(c1_data['str_pid_labels'])
-        for pid in c1_unq_str_pids:
-            pid_mask = (c1_data['str_pid_labels'] == pid)
+            jp_sleep_features_all = jp_data['sleep_features']
+            jp_sleep_statistics_all = jp_data['sleep_statistics']
+        jp_unq_str_pids = np.unique(jp_data['str_pid_labels'])
+        for pid in jp_unq_str_pids:
+            pid_mask = (jp_data['str_pid_labels'] == pid)
             # current features
-            features_pid = c1_features_all[pid_mask, :]
+            features_pid = jp_features_all[pid_mask, :]
             mu = np.mean(features_pid, axis=0, keepdims=True)
             std = np.std(features_pid, axis=0, keepdims=True) + 1e-6
-            c1_features_all[pid_mask, :] = (features_pid - mu) / std
+            jp_features_all[pid_mask, :] = (features_pid - mu) / std
             if include_sleep:
                 # sleep features
-                sleep_features_pid = c1_sleep_features_all[pid_mask, :]
+                sleep_features_pid = jp_sleep_features_all[pid_mask, :]
                 mu_sleep = np.mean(sleep_features_pid, axis=0, keepdims=True)
                 std_sleep = np.std(sleep_features_pid, axis=0, keepdims=True) + 1e-6
-                c1_sleep_features_all[pid_mask, :] = (sleep_features_pid - mu_sleep) / std_sleep
+                jp_sleep_features_all[pid_mask, :] = (sleep_features_pid - mu_sleep) / std_sleep
                 # sleep statistics
-                sleep_statistics_pid = c1_sleep_statistics_all[pid_mask, :]
+                sleep_statistics_pid = jp_sleep_statistics_all[pid_mask, :]
                 mu_stat = np.mean(sleep_statistics_pid, axis=0, keepdims=True)
                 std_stat = np.std(sleep_statistics_pid, axis=0, keepdims=True) + 1e-6
-                c1_sleep_statistics_all[pid_mask, :] = (sleep_statistics_pid - mu_stat) / std_stat
-        # C2 data
-        c2_features_all = c2_data['features']
+                jp_sleep_statistics_all[pid_mask, :] = (sleep_statistics_pid - mu_stat) / std_stat
+        # SG data
+        sg_features_all = sg_data['features']
         if include_sleep:
-            c2_sleep_features_all = c2_data['sleep_features']
-            c2_sleep_statistics_all = c2_data['sleep_statistics']
+            sg_sleep_features_all = sg_data['sleep_features']
+            sg_sleep_statistics_all = sg_data['sleep_statistics']
 
-        c2_unq_str_pids = np.unique(c2_data['str_pid_labels'])
-        for pid in c2_unq_str_pids:
-            pid_mask = (c2_data['str_pid_labels'] == pid)
+        sg_unq_str_pids = np.unique(sg_data['str_pid_labels'])
+        for pid in sg_unq_str_pids:
+            pid_mask = (sg_data['str_pid_labels'] == pid)
             # current features
-            features_pid = c2_features_all[pid_mask, :]
+            features_pid = sg_features_all[pid_mask, :]
             mu = np.mean(features_pid, axis=0, keepdims=True)
             std = np.std(features_pid, axis=0, keepdims=True) + 1e-6
-            c2_features_all[pid_mask, :] = (features_pid - mu) / std
+            sg_features_all[pid_mask, :] = (features_pid - mu) / std
             if include_sleep:
                 # sleep features
-                sleep_features_pid = c2_sleep_features_all[pid_mask, :]
+                sleep_features_pid = sg_sleep_features_all[pid_mask, :]
                 mu_sleep = np.mean(sleep_features_pid, axis=0, keepdims=True)
                 std_sleep = np.std(sleep_features_pid, axis=0, keepdims=True) + 1e-6
-                c2_sleep_features_all[pid_mask, :] = (sleep_features_pid - mu_sleep) / std_sleep
+                sg_sleep_features_all[pid_mask, :] = (sleep_features_pid - mu_sleep) / std_sleep
                 # sleep statistics
-                sleep_statistics_pid = c2_sleep_statistics_all[pid_mask, :]
+                sleep_statistics_pid = sg_sleep_statistics_all[pid_mask, :]
                 mu_stat = np.mean(sleep_statistics_pid, axis=0, keepdims=True)
                 std_stat = np.std(sleep_statistics_pid, axis=0, keepdims=True) + 1e-6
-                c2_sleep_statistics_all[pid_mask, :] = (sleep_statistics_pid - mu_stat) / std_stat
+                sg_sleep_statistics_all[pid_mask, :] = (sleep_statistics_pid - mu_stat) / std_stat
         # save normalized data temporarily
-        fn_c1_path = c1_load_path.replace('.npz', '_normalized.npz')
-        fn_c2_path = c2_load_path.replace('.npz', '_normalized.npz')
-        np.savez(fn_c1_path, **c1_data)
-        np.savez(fn_c2_path, **c2_data)
+        fn_jp_path = jp_load_path.replace('.npz', '_normalized.npz')
+        fn_sg_path = sg_load_path.replace('.npz', '_normalized.npz')
+        np.savez(fn_jp_path, **jp_data)
+        np.savez(fn_sg_path, **sg_data)
     else:
         combined_data = {}
-        for key in c1_data.keys():
+        for key in jp_data.keys():
             print(f'Key: {key}')
             # check if single dimensional
             if key in ['feature_names', 'sleep_feature_names', 'sleep_statistic_names']:
-                assert np.all(c1_data[key] == c2_data[key])
-                values = c1_data[key] 
+                assert np.all(jp_data[key] == sg_data[key])
+                values = jp_data[key] 
             elif key != 'pid_labels':
-                values = np.concatenate((c1_data[key], c2_data[key]), axis=0)
+                values = np.concatenate((jp_data[key], sg_data[key]), axis=0)
             else:
-                assert np.min(c1_data[key]) == 1, 'C1 PIDs should start from 1!'
-                assert np.min(c2_data[key]) == 1, 'C2 PIDs should start from 1!'
-                max_c1_pid = np.max(c1_data[key])
-                values = np.concatenate((c1_data[key], max_c1_pid + c2_data[key]), axis=0)
+                assert np.min(jp_data[key]) == 1, 'JP PIDs should start from 1!'
+                assert np.min(sg_data[key]) == 1, 'SG PIDs should start from 1!'
+                max_jp_pid = np.max(jp_data[key])
+                values = np.concatenate((jp_data[key], max_jp_pid + sg_data[key]), axis=0)
             combined_data[key] = values
 
         # ================ Filter good participants ================

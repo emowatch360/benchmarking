@@ -64,15 +64,15 @@ if __name__ == '__main__':
     start_timestamp_list = sleep_summary_df['start_time']
     end_timestamp_list = sleep_summary_df['end_time']
     dates_df = pd.read_csv(DATES_CSV)
-    dataset_country = 'c1'
+    dataset_country = 'jp'
     assert country_in_config.lower() == dataset_country.lower(), "Dataset country mismatch!"
     # valid_idx = 0
     for idx, (chosen_pid, chosen_day, start_timestamp, end_timestamp) in enumerate(zip(pid_list, day_list, start_timestamp_list, end_timestamp_list)):
-        if dataset_country == 'c1':
+        if dataset_country == 'jp':
             if 'MM' not in chosen_pid:
                 continue
-        elif dataset_country == 'c2':
-            if 'pid' not in chosen_pid and 'c2com' not in chosen_pid:
+        elif dataset_country == 'sg':
+            if 'pid' not in chosen_pid and 'oac' not in chosen_pid:
                 continue
         with open(log_file_path, 'a') as log_file:
             log_file.write(f'Processing index {idx}...\n')
@@ -85,7 +85,7 @@ if __name__ == '__main__':
             end_timestamp == 'error' or end_timestamp == '' or end_timestamp != end_timestamp: # nan
             continue
         # identify first date str
-        if dataset_country == 'c1':
+        if dataset_country == 'jp':
             row = dates_df.loc[dates_df['pid'] == chosen_pid, 'start date']
             if row.empty:
                 raise ValueError(f"No start date found for pid={chosen_pid} in {DATES_CSV}")
@@ -96,7 +96,7 @@ if __name__ == '__main__':
                 with open(log_file_path, 'a') as log_file:
                     log_file.write(f'Invalid start day/end day: {start_day}/{end_day} for pid={chosen_pid}, skipping...\n')
                 continue
-        elif dataset_country == 'c2':
+        elif dataset_country == 'sg':
             end_time = convert_to_minutes(end_timestamp, fmt='YYYY-MM-DD HH:MM:SS')
             start_time = convert_to_minutes(start_timestamp, fmt='YYYY-MM-DD HH:MM:SS')
             # rows are chosen_pid, and columns as chosen_day

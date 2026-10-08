@@ -5,9 +5,9 @@ from datetime import datetime
 from utils import convert_to_minutes
 from config import (ROOT_FOLDER)
 
-dataset_country = 'C2'
+dataset_country = 'SG'
 data_path = os.path.join(ROOT_FOLDER, f'rawdata_{dataset_country.lower()}')
-questionnaire_file = 'Questionnaire-c2_2025-10-30.csv'
+questionnaire_file = 'Questionnaire-sg_2025-10-30.csv'
 input_path = os.path.join(data_path, questionnaire_file)
 output_path = os.path.join(ROOT_FOLDER, f'processed_labels_{dataset_country.lower()}_v1.csv')
 

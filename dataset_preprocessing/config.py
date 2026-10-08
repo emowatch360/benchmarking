@@ -1,6 +1,6 @@
 import os
 
-dataset_country = 'c1' #c1 or c2
+dataset_country = 'jp' #jp or sg
 # --- Directories ---
 ROOT_FOLDER = '/data/emowatch/emowatch'  # e.g., the parent folder (emowatch folder)
 FEATURE_FOLDER = os.path.join(ROOT_FOLDER, f'rawdata_{dataset_country}')

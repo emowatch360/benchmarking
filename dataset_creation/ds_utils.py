@@ -165,7 +165,7 @@ def get_sleep_start_and_end_times(pid, day, dates_df, sleep_summary_df, day_list
             # next day date does not match
             sleep_time = ds_info['default-sleep-time-index']
             print(f'Warning: For PID: {pid}, Day: {day}, next day does not match! Using default sleep time index.')
-            # raise ValueError('For C1 dataset, next day should always match!')
+            # raise ValueError('For JP dataset, next day should always match!')
         else:
             sleep_row_next = sleep_summary_df[(sleep_summary_df['PID'] == pid)
                                             & (sleep_summary_df['Wake Day'] == next_day)]

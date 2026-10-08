@@ -3,7 +3,7 @@ import pandas as pd
 
 file_names = ['skin-temperature.csv', 'actigraphy.csv', 'heart-rate.csv', 'motion-intensity.csv',
               'step-log.csv', 'respiration.csv', 'stress.csv', 'spo2-logging.csv', 'spo2.csv']
-dir_path = '/data/emowatch/emowatch/rawdata_c1'
+dir_path = '/data/emowatch/emowatch/rawdata_jp'
 source_dict = {}
 for file_name in file_names:
     source_dict[file_name] = set()

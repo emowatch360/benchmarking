@@ -1,4 +1,4 @@
-# combine pretraining datasets from two different dataset countries (e.g., 'c1' and 'c2')
+# combine pretraining datasets from two different dataset countries (e.g., 'jp' and 'sg')
 import os
 import numpy as np
 from ..model_training.configs.shared_config import data_folder # type: ignore
@@ -18,39 +18,39 @@ def merge_and_save_pretrained_datasets(
             f'both_{filename}'
         )
 
-    c1_load_path = os.path.join(
+    jp_load_path = os.path.join(
         data_folder,
         f'{num_class}class',
-        f'c1_features{feature_dim}_epoch{context_min}',
-        f'c1_{filename}'
+        f'jp_features{feature_dim}_epoch{context_min}',
+        f'jp_{filename}'
     )
-    c2_load_path = os.path.join(
+    sg_load_path = os.path.join(
         data_folder,
         f'{num_class}class',
-        f'c2_features{feature_dim}_epoch{context_min}',
-        f'c2_{filename}'
+        f'sg_features{feature_dim}_epoch{context_min}',
+        f'sg_{filename}'
     )
 
-    c1_npz = np.load(c1_load_path)
-    c2_npz = np.load(c2_load_path)
-    c1_data = {k: c1_npz[k].copy() for k in c1_npz.files}
-    c2_data = {k: c2_npz[k].copy() for k in c2_npz.files}
-    c1_npz.close()
-    c2_npz.close()
+    jp_npz = np.load(jp_load_path)
+    sg_npz = np.load(sg_load_path)
+    jp_data = {k: jp_npz[k].copy() for k in jp_npz.files}
+    sg_data = {k: sg_npz[k].copy() for k in sg_npz.files}
+    jp_npz.close()
+    sg_npz.close()
 
     combined_data = {}
-    for key in c1_data.keys():
+    for key in jp_data.keys():
         print(f'Key: {key}')
         if key in ['feature_names', 'sleep_feature_names']:
-            assert np.all(c1_data[key] == c2_data[key])
-            values = c1_data[key]
+            assert np.all(jp_data[key] == sg_data[key])
+            values = jp_data[key]
         elif key != 'pid_labels':
-            values = np.concatenate((c1_data[key], c2_data[key]), axis=0)
+            values = np.concatenate((jp_data[key], sg_data[key]), axis=0)
         else:
-            assert np.min(c1_data[key]) == 1, 'C1 PIDs should start from 1!'
-            assert np.min(c2_data[key]) == 1, 'C2 PIDs should start from 1!'
-            max_c1_pid = np.max(c1_data[key])
-            values = np.concatenate((c1_data[key], max_c1_pid + c2_data[key]), axis=0)
+            assert np.min(jp_data[key]) == 1, 'JP PIDs should start from 1!'
+            assert np.min(sg_data[key]) == 1, 'SG PIDs should start from 1!'
+            max_jp_pid = np.max(jp_data[key])
+            values = np.concatenate((jp_data[key], max_jp_pid + sg_data[key]), axis=0)
         combined_data[key] = values
 
     merged_key = 'sleep_features' if include_sleep else 'features'

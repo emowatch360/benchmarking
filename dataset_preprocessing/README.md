@@ -40,7 +40,7 @@ A log file is also created in:
 Open `config.py` and set:
 
 #### Dataset selector
-- `dataset_country = 'c1'`  # must be `'c1'` or `'c2'`
+- `dataset_country = 'jp'`  # must be `'jp'` or `'sg'`
 
 #### Paths
 - `ROOT_FOLDER`  
@@ -67,11 +67,11 @@ Open `config.py` and set:
 
 ### B) `save_features.py` (must match config)
 
-At the bottom of `save_features.py`, set `dataset_country` to be `'C1'` or `'C2'` as required
+At the bottom of `save_features.py`, set `dataset_country` to be `'JP'` or `'SG'` as required
 
-## Additional operation (C2 only): Fill missing Step Count / Total Count using intraday.csv
+## Additional operation (SG only): Fill missing Step Count / Total Count using intraday.csv
 
-For the **C2** dataset, some participants have an **empty** `step-log.csv`. In those cases, we compute step-derived columns using the **15-minute intraday summaries** and write them back into the already-saved per-minute feature CSVs.
+For the **SG** dataset, some participants have an **empty** `step-log.csv`. In those cases, we compute step-derived columns using the **15-minute intraday summaries** and write them back into the already-saved per-minute feature CSVs.
 
 **Script:** `update_step_log_using_intraday.py`
 

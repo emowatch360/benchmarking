@@ -94,9 +94,9 @@ def load_emowatch_finetuning(ds_info, save_data=False, cluster_num=-1, include_s
                         print(f'Previous day {prev_day} not in day list!')
                         continue
                     # check if prev day and next day are consecutive days
-                    if dataset_country == 'c2':
-                        prev_date = c2_dates_df.loc[c2_dates_df['pid'] == chosen_pid, prev_day].iloc[0]
-                        curr_date = c2_dates_df.loc[c2_dates_df['pid'] == chosen_pid, chosen_day].iloc[0]
+                    if dataset_country == 'sg':
+                        prev_date = sg_dates_df.loc[sg_dates_df['pid'] == chosen_pid, prev_day].iloc[0]
+                        curr_date = sg_dates_df.loc[sg_dates_df['pid'] == chosen_pid, chosen_day].iloc[0]
                         assert pd.to_datetime(prev_date) == (pd.to_datetime(curr_date) - timedelta(days=1)), 'dates are not consecutive!'
                     prev_data_path = os.path.join(feature_folder, f'{chosen_pid}-{prev_day}-features.csv')
                     prev_features_df = pd.read_csv(prev_data_path)
@@ -154,10 +154,10 @@ def load_emowatch_finetuning(ds_info, save_data=False, cluster_num=-1, include_s
                         if wake_day not in ds_info['day-list']:
                             print(f'Wake day {wake_day} not in day list; Time Index: {time_idx}!')
                             continue
-                        if dataset_country == 'c2':
+                        if dataset_country == 'sg':
                             # check if prev day and next day are consecutive days
-                            prev_date = c2_dates_df.loc[c2_dates_df['pid'] == chosen_pid, wake_day].iloc[0]
-                            curr_date = c2_dates_df.loc[c2_dates_df['pid'] == chosen_pid, chosen_day].iloc[0]
+                            prev_date = sg_dates_df.loc[sg_dates_df['pid'] == chosen_pid, wake_day].iloc[0]
+                            curr_date = sg_dates_df.loc[sg_dates_df['pid'] == chosen_pid, chosen_day].iloc[0]
                             assert pd.to_datetime(prev_date) == (pd.to_datetime(curr_date) - timedelta(days=1)), 'dates are not consecutive!'
                     sleep_statistics = get_sleep_statistics(sleep_stat_path=ds_info['sleep-stat-path'],
                                                         pid=chosen_pid,

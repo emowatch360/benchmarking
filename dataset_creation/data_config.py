@@ -20,22 +20,22 @@ def get_dataset_dict(dataset_name):
         # ds_info['save-folder'] = os.path.join(ds_info['data-folder'], 'numpy_arrays', f'features29_epoch{ds_info['duration']}')
         # ds_info['demographics-path'] = os.path.join(ds_info['data-folder'], 'demographics-info-modified.csv')
         ds_info['demographics-path'] = os.path.join(ds_info['data-folder'], 'demographics-info-all-modified.csv')
-        ds_info['c1-dates-path'] = os.path.join(ds_info['data-folder'], f'detailed_c1_start_end_dates.csv')
-        ds_info['c2-dates-path'] = os.path.join(ds_info['data-folder'], f'c2_start_end_dates.csv')
+        ds_info['jp-dates-path'] = os.path.join(ds_info['data-folder'], f'detailed_jp_start_end_dates.csv')
+        ds_info['sg-dates-path'] = os.path.join(ds_info['data-folder'], f'sg_start_end_dates.csv')
         # ds_info['sleep-feat-path'] = os.path.join(ds_info['data-folder'], 'processed_sleep_data_all')
         ds_info['sleep-feat-path'] = os.path.join(ds_info['data-folder'], 'processed_sleep_data_all_filtered')
         ds_info['sleep-stat-path'] = os.path.join(ds_info['data-folder'], 'sleep_summary_all.csv')
         # ds_info['cluster-feature'] = 'RMSSD'
         # ds_info['cluster-path'] = os.path.join(ds_info['data-folder'], 'sleep_clusters', f'sleep_cluster_{ds_info['cluster-feature']}.csv')
         # ensure all day lists are in order (mainly for prev survey label computation)
-        # orig_pid_list = ['MM_'+f'{pid:02d}' for pid in range(1, 46)] + ['pid'+f'{idx:02d}' for idx in range(1, 35)] + ['c2com'+f'{idx:02d}' for idx in range(1, 20)]
-        if ds_info['dataset-country'] == 'c1':
+        # orig_pid_list = ['MM_'+f'{pid:02d}' for pid in range(1, 46)] + ['pid'+f'{idx:02d}' for idx in range(1, 35)] + ['oac'+f'{idx:02d}' for idx in range(1, 20)]
+        if ds_info['dataset-country'] == 'jp':
             orig_pid_list = ['MM_'+f'{pid:02d}' for pid in range(1, 46)]
             ds_info['label-type'] = 'continuous'
-        elif ds_info['dataset-country'] == 'c2':
-            orig_pid_list = ['c2com'+f'{idx:02d}' for idx in range(1, 20)] + ['pid'+f'{idx:02d}' for idx in range(1, 35)]
+        elif ds_info['dataset-country'] == 'sg':
+            orig_pid_list = ['oac'+f'{idx:02d}' for idx in range(1, 20)] + ['pid'+f'{idx:02d}' for idx in range(1, 35)]
             ds_info['label-type'] = 'likert' # or 'likert'
-        pid_to_remove = ['MM_12', 'c2com02', 'c2com16', 'pid02', 'pid04', 'pid05', 'pid07', 'pid11', 'pid14', 'pid16', 'pid18', 'pid24', 'pid28', 'pid29', 'pid30', 'pid33', 'pid34', 'pid32']
+        pid_to_remove = ['MM_12', 'oac02', 'oac16', 'pid02', 'pid04', 'pid05', 'pid07', 'pid11', 'pid14', 'pid16', 'pid18', 'pid24', 'pid28', 'pid29', 'pid30', 'pid33', 'pid34', 'pid32']
         ds_info['pid-list'] = [pid for pid in orig_pid_list if pid not in pid_to_remove]
         ds_info['day-list'] = ['d'+f'0{idx}'[-2:] for idx in range(1, 29)]
         ds_info['total-pid-num'] = len(ds_info['pid-list'])
@@ -54,7 +54,7 @@ def get_dataset_dict(dataset_name):
                                             'C1d', 'C2d', 
                                             'ApEn', 'MSEn', 'CMSEn', 'RCMSEn', 'HFD']
         ds_info['count-based-features'] = ['Step Count', 'Total Count', 'Zero Crossing Count']
-        # c1 data list
+        # jp data list
     #     ['Respiration (breaths/min)', 'Heart Rate (bpm)', 'Spo2',
     #    'Temperature (celsius)', 'Body Battery (%)', 'Motion Intensity',
     #    'Step Count', 'Total Count', 'Zero Crossing Count', 
@@ -100,7 +100,7 @@ def get_dataset_dict(dataset_name):
         #                                 'SD1d', 'SD1a','ApEn', 'Spo2', 'Total Energy',
         #                                 'Zero Crossing Count', 'Time Above Threshold',
         #                                 'Respiration (breaths/min)']
-        # ds_info['sleep-feat-path'] = os.path.join(ds_info['data-folder'], 'processed_sleep_data_c1')
+        # ds_info['sleep-feat-path'] = os.path.join(ds_info['data-folder'], 'processed_sleep_data_jp')
         # ds_info['offset-features'] = False # apply change-score normalization
         ds_info['total-minutes'] = 1440 # 24 hours in minutes
         ds_info['night-minutes'] = 959 # 15:59 in minutes -- to include evening and bedtime

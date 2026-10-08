@@ -62,7 +62,7 @@ cd model_training
 python -m multimodal_enc.evaluate_and_save_results
 ```
 
-`dataset_country` (`both`, `c1`, or `c2`) selects the dataset; results are written to `<results.root_dir>/<dataset_country>_multimodal_enc_...`.
+`dataset_country` (`both`, `jp`, or `sg`) selects the dataset; results are written to `<results.root_dir>/<dataset_country>_multimodal_enc_...`.
 
 With `save=True`, each CV fold writes the following to the results log folder:
 - `eval_results_iter{k}.csv`: per-epoch train/validation losses and ROC

@@ -76,7 +76,7 @@ This path is used by both the multimodal encoder and XGBoost training scripts.
 
 ### Preprocessing paths
 
-Open `dataset_preprocessing/config.py` and set `ROOT_FOLDER` to the same root data directory. `dataset_country` must be set to `'c1'` or `'c2'` depending on which cohort you are processing. See `dataset_preprocessing/README.md` for full details.
+Open `dataset_preprocessing/config.py` and set `ROOT_FOLDER` to the same root data directory. `dataset_country` must be set to `'jp'` or `'sg'` depending on which cohort you are processing. See `dataset_preprocessing/README.md` for full details.
 
 ### Dataset creation paths
 
@@ -97,7 +97,7 @@ cd dataset_preprocessing
 python save_features.py
 ```
 
-For C2 only, follow up with:
+For SG only, follow up with:
 
 ```bash
 python update_step_log_using_intraday.py

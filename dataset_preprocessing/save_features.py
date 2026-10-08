@@ -24,13 +24,13 @@ def main(chosen_day, chosen_pid, dataset_country):
     # compute date string
     # read DATES_CSV, get the value of the 'start date' column for the 'pid' of chosen_pid
     dates_df = pd.read_csv(DATES_CSV)
-    if dataset_country == 'C1':
+    if dataset_country == 'JP':
         row = dates_df.loc[dates_df['pid'] == chosen_pid, 'start date']
         if row.empty:
             raise ValueError(f"No start date found for pid={chosen_pid} in {DATES_CSV}")
         first_date_str = row.iloc[0]
         date_str = compute_day_str(chosen_day, first_date_str)
-    elif dataset_country == 'C2':
+    elif dataset_country == 'SG':
         # rows are chosen_pid, and columns as chosen_day
         # convert the date str from 'YYYY/MM/DD' to 'YYYY-MM-DD'
         row = dates_df.loc[dates_df['pid'] == chosen_pid, chosen_day]
@@ -61,15 +61,15 @@ def main(chosen_day, chosen_pid, dataset_country):
         log_file.write(f"Feature data saved to {save_path}\n")
 
 if __name__ == '__main__':
-    dataset_country = 'C2' # set the corresponding country in config.py too!
+    dataset_country = 'SG' # set the corresponding country in config.py too!
     pid_list = os.listdir(HRV_FOLDER)
-    # country - C1
-    if dataset_country == 'C1':
+    # country - JP
+    if dataset_country == 'JP':
         # only retain pids that start with 'MM'
         pid_list = [pid for pid in pid_list if pid.startswith('MM')]
-    elif dataset_country == 'C2':
-        # only retain pids that start with 'c2com' or 'pid'
-        pid_list = [pid for pid in pid_list if pid.startswith('c2com') or pid.startswith('pid')] 
+    elif dataset_country == 'SG':
+        # only retain pids that start with 'oac' or 'pid'
+        pid_list = [pid for pid in pid_list if pid.startswith('oac') or pid.startswith('pid')] 
     days_list = [f'd{idx:02d}' for idx in range(1, 29)]
 
     with open(log_file_path, 'a') as log_file:
